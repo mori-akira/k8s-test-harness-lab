@@ -85,6 +85,17 @@ initContainer は常に `/secrets/*` を読んで realm JSON をレンダリン�
 - local: ダミーの Secret マニフェスト (Git に入れてよい値のみ)
 - dev: 既存実績のある Secrets Manager 注入方式
 
+Keycloak (`idp`) の `/secrets` に置くキー:
+
+| キー | 用途 |
+| --- | --- |
+| `admin-username` / `admin-password` | master realm の初期管理者 (`KC_BOOTSTRAP_ADMIN_*` に渡す) |
+| `user-password-ci` | テストユーザ `ci-01`〜`ci-06` のパスワード |
+| `user-password-human` | テストユーザ `human-01`〜`human-04` のパスワード |
+
+realm テンプレート中の `{{secret:<キー>}}` が、`/secrets/<キー>` の内容に置換される。
+Keycloak 自身の `${...}` 置換と混ざらないよう、記法を分けている。参照先のファイルが無い場合、initContainer は失敗する。
+
 ### run-id の全層伝播
 
 test-runner が run-id を発行し、以下に伝播させる。

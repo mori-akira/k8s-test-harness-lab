@@ -105,10 +105,12 @@ flowchart LR
 ```sh
 make cluster-up    # k3d クラスタ k8s-test-harness-lab を作成 (current-context は変えない)
 make deploy        # manifest/overlays/local を適用
-make verify        # NameSpace と ingress (http://localhost:8080) の到達性を確認
+make verify        # NameSpace / ingress の到達性と Keycloak の issuer の一致を確認
 make render        # local overlay のレンダリング結果を確認
 make cluster-down  # 削除
 ```
+
+Keycloak の管理コンソール: http://keycloak.localtest.me:8080/admin/ (`admin` / `admin`、local 専用のダミー値)
 
 ## 計画の扱い
 

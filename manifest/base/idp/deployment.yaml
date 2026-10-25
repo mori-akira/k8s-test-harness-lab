@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: idp
+spec:
+  replicas: 1
+  # H2 (揮発) なので複数 replica にはしない。入れ替え時も同時起動させない
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      initContainers:
+        # /secrets/* を読んで realm JSON をレンダリングする。/secrets の埋め方だけが環境差分
+        - name: render-realm
+          image: alpine:3.20
+          command: ["sh", "/scripts/render-realm.sh", "/realm/lab-realm.json", "/import/lab-realm.json"]
+          volumeMounts:
+            - { name: secrets, mountPath: /secrets, readOnly: true }
+            - { name: realm-template, mountPath: /realm, readOnly: true }
+            - { name: scripts, mountPath: /scripts, readOnly: true }
+            - { name: import, mountPath: /import }
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.4.0
+          # 管理者の初期値も /secrets から読む (env に Secret を直接ひもづけない)
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              export KC_BOOTSTRAP_ADMIN_USERNAME="$(cat /secrets/admin-username)"
+              export KC_BOOTSTRAP_ADMIN_PASSWORD="$(cat /secrets/admin-password)"
+              exec /opt/keycloak/bin/kc.sh start-dev --import-realm
+          envFrom:
+            - configMapRef:
+                name: keycloak-config
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: management, containerPort: 9000 }
+          startupProbe:
+            httpGet: { path: /health/started, port: management }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /health/ready, port: management }
+            periodSeconds: 10
+          volumeMounts:
+            - { name: secrets, mountPath: /secrets, readOnly: true }
+            - { name: import, mountPath: /opt/keycloak/data/import, readOnly: true }
+      volumes:
+        - name: secrets
+          secret:
+            secretName: keycloak-secrets
+        - name: realm-template
+          configMap:
+            name: keycloak-realm-template
+        - name: scripts
+          configMap:
+            name: keycloak-scripts
+        - name: import
+          emptyDir: {}

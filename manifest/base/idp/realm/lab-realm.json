@@ -1,0 +1,158 @@
+{
+  "realm": "lab",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "users": [
+    {
+      "username": "ci-01",
+      "enabled": true,
+      "email": "ci-01@example.com",
+      "emailVerified": true,
+      "firstName": "CI",
+      "lastName": "01",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-ci}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ci-02",
+      "enabled": true,
+      "email": "ci-02@example.com",
+      "emailVerified": true,
+      "firstName": "CI",
+      "lastName": "02",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-ci}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ci-03",
+      "enabled": true,
+      "email": "ci-03@example.com",
+      "emailVerified": true,
+      "firstName": "CI",
+      "lastName": "03",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-ci}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ci-04",
+      "enabled": true,
+      "email": "ci-04@example.com",
+      "emailVerified": true,
+      "firstName": "CI",
+      "lastName": "04",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-ci}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ci-05",
+      "enabled": true,
+      "email": "ci-05@example.com",
+      "emailVerified": true,
+      "firstName": "CI",
+      "lastName": "05",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-ci}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ci-06",
+      "enabled": true,
+      "email": "ci-06@example.com",
+      "emailVerified": true,
+      "firstName": "CI",
+      "lastName": "06",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-ci}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "human-01",
+      "enabled": true,
+      "email": "human-01@example.com",
+      "emailVerified": true,
+      "firstName": "Human",
+      "lastName": "01",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-human}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "human-02",
+      "enabled": true,
+      "email": "human-02@example.com",
+      "emailVerified": true,
+      "firstName": "Human",
+      "lastName": "02",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-human}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "human-03",
+      "enabled": true,
+      "email": "human-03@example.com",
+      "emailVerified": true,
+      "firstName": "Human",
+      "lastName": "03",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-human}}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "human-04",
+      "enabled": true,
+      "email": "human-04@example.com",
+      "emailVerified": true,
+      "firstName": "Human",
+      "lastName": "04",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{secret:user-password-human}}",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

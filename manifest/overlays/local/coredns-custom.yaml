@@ -1,0 +1,14 @@
+# クラスタ内 Pod から issuer host を Keycloak の Service に解決させる。
+# localtest.me は公開 DNS で 127.0.0.1 になるため、これが無いと Pod 自身を指してしまう。
+# k3s の CoreDNS は kube-system/coredns-custom の *.override を server block に import する。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  keycloak.override: |
+    rewrite stop {
+      name exact keycloak.localtest.me keycloak.idp.svc.cluster.local
+      answer auto
+    }

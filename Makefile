@@ -16,8 +16,12 @@ render: ## local overlay をレンダリングして標準出力に出す
 
 deploy: ## local overlay を適用する
 	$(KUBECTL) apply -k manifest/overlays/local
+	@# coredns-custom の変更は reload を待つと1分以上かかるため、再起動して即時に反映させる
+	$(KUBECTL) -n kube-system rollout restart deploy/coredns
+	$(KUBECTL) -n kube-system rollout status deploy/coredns --timeout=120s
+	$(KUBECTL) -n idp rollout status deploy/keycloak --timeout=300s
 
-verify: ## Step 1 の確認: NameSpace と ingress の到達性
+verify: ## NameSpace / ingress の到達性 (Step 1) と issuer の一致 (Step 2) を確認する
 	$(KUBECTL) get ns -l app.kubernetes.io/part-of=k8s-test-harness-lab
 	@# traefik は k3s 起動後に HelmChart の Job で入るため、Job の完了を待ってから見る
 	@until $(KUBECTL) -n kube-system get job helm-install-traefik >/dev/null 2>&1; do sleep 2; done
@@ -30,3 +34,4 @@ verify: ## Step 1 の確認: NameSpace と ingress の到達性
 	done; \
 	echo "ingress http://localhost:8080/ -> $$code (traefik の 404 なら到達している)"; \
 	test "$$code" = 404
+	CONTEXT=$(CONTEXT) scripts/verify-idp.sh

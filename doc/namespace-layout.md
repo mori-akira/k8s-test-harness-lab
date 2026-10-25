@@ -25,10 +25,11 @@ NetworkPolicy は PoC のスコープ外 (= 名前空間間は素通し)。
 ├ doc/                  — 本ドキュメント群
 ├ Makefile              — クラスタ作成 / デプロイ / 確認のエントリポイント
 ├ cluster/              — k3d クラスタ定義 (local のみ)
-├ realm/                — Keycloak realm JSON のテンプレート (10ユーザ定義)
 ├ manifest/
 │  ├ base/              — NameSpace 単位のマニフェスト
 │  │  ├ idp/
+│  │  │  ├ realm/     — Keycloak realm JSON のテンプレート (10ユーザ定義)
+│  │  │  └ scripts/   — realm JSON のレンダリングスクリプト (initContainer で実行)
 │  │  ├ db/
 │  │  ├ api-a/
 │  │  ├ api-b/
@@ -43,6 +44,7 @@ NetworkPolicy は PoC のスコープ外 (= 名前空間間は素通し)。
 │  ├ api-a/
 │  ├ api-b/
 │  └ job/
+├ scripts/              — 確認用スクリプト (make verify から呼ぶ)
 └ test/                 — Playwright テストスイート + seed スクリプト
 ```
 
@@ -55,7 +57,9 @@ base に local 固有の値が入り込み、この表に書けない差分が�
 | 項目 | local | dev |
 | --- | --- | --- |
 | Ingress | traefik | ALB Controller (annotation) |
-| Keycloak の issuer host | `keycloak.localtest.me` | 内部 ALB のホスト名 |
+| Keycloak の issuer (`KC_HOSTNAME`) | `http://keycloak.localtest.me:8080` | 内部 ALB のホスト名 |
+| Keycloak の Ingress | host `keycloak.localtest.me` / class `traefik` | 内部 ALB のホスト名 / ALB |
+| issuer host の Pod 内解決 | CoreDNS rewrite (`kube-system/coredns-custom`) | 要確認 (内部 ALB のホスト名が Pod から引けるか) |
 | Secret 供給 | ダミー Secret マニフェスト | Secrets Manager 注入 (既存実績) |
 | DB 接続先 | in-cluster MySQL の Service | Aurora MySQL のエンドポイント |
 | Job トリガ | in-cluster Redis | SQS / ファイル連携 |

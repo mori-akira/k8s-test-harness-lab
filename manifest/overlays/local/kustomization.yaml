@@ -2,6 +2,26 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+  - idp-secret.yaml
+  - coredns-custom.yaml
 labels:
   - pairs:
       harness.lab/env: local
+configMapGenerator:
+  - name: keycloak-config
+    namespace: idp
+    behavior: merge
+    literals:
+      - KC_HOSTNAME=http://keycloak.localtest.me:8080
+patches:
+  - target:
+      kind: Ingress
+      name: keycloak
+      namespace: idp
+    patch: |
+      - op: add
+        path: /spec/ingressClassName
+        value: traefik
+      - op: replace
+        path: /spec/rules/0/host
+        value: keycloak.localtest.me

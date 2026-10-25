@@ -33,7 +33,7 @@ EKS (dev) 上で IT を自動化する仕組みのうち、以下2点を local �
 | --- | --- | --- | --- |
 | 0 | doc 一式 (本ファイル群) | — | 完了 |
 | 1 | リポジトリ骨格 + kustomize base/overlays + k3d クラスタ構築手順 | local 固有の値が overlay に閉じるか | 完了 |
-| 2 | **Keycloak 単体**を上げる | realm import / Secret レンダリング / **issuer 到達性** | 未着手 |
+| 2 | **Keycloak 単体**を上げる | realm import / Secret レンダリング / **issuer 到達性** | 完了 |
 | 3 | api-a (Spring Boot resource server, `sub` スコープの CRUD 1つ) + MySQL | トークンで API を叩けるか | 未着手 |
 | 4 | front (Nuxt SPA, 認可コード + PKCE, 画面1つ) | ブラウザフローが通るか | 未着手 |
 | 5 | api-b (client_credentials で api-a 呼び出し + **外部呼び出し1本**) | サービス間認証。(2) の seam 設置 | 未着手 |
@@ -65,7 +65,12 @@ k3d を使う。定義は [cluster/k3d.yaml](../cluster/k3d.yaml)、操作は `M
 `iss` は1つの文字列なので、**ブラウザとクラスタ内 Pod の両方から同一 URL で解決できる**必要がある。
 ブラウザが `http://keycloak.localtest.me:8080/realms/lab` にリダイレクトされるのに、api-a が JWKS を取得できない、という事故が起きる。
 
-- local: ingress host を `keycloak.localtest.me` (公開 DNS で 127.0.0.1 に解決) にし、API Pod に `hostAliases` で同ホストを ingress controller の ClusterIP に向ける。または CoreDNS に rewrite を1行
+- local (採用): issuer は `http://keycloak.localtest.me:8080/realms/lab`。
+  - ブラウザ: `localtest.me` は公開 DNS で 127.0.0.1 → host 8080 → traefik → Service `keycloak:8080`
+  - Pod: CoreDNS の rewrite (`kube-system/coredns-custom`) で `keycloak.localtest.me` を `keycloak.idp.svc.cluster.local` に読み替え → Service `keycloak:8080` に直接届く
+  - Service の port を issuer の port (8080) と揃えているので、ホスト名だけ読み替えれば URL が一致する
+  - 当初案の `hostAliases` で traefik の ClusterIP に向ける方式は、traefik がクラスタ内では 80 番で待つため port が合わず不採用
+  - CoreDNS は `coredns-custom` の作成・変更を reload で取り込むまで1分以上かかる。`make deploy` で CoreDNS を再起動して即時に反映させている
 - dev: 内部 ALB のホスト名が Pod からも社内ブラウザからも引けるか **要確認**。ここは PoC で決めた方式がそのまま dev の設計になる
 
 ## テストユーザ

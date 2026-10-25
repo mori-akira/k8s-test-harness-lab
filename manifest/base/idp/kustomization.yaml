@@ -2,3 +2,22 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+configMapGenerator:
+  - name: keycloak-config
+    namespace: idp
+    literals:
+      # issuer の基点。ブラウザとクラスタ内 Pod の両方から同じ URL で到達できること。overlay で差し替える
+      - KC_HOSTNAME=http://keycloak.invalid
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HEALTH_ENABLED=true
+  - name: keycloak-realm-template
+    namespace: idp
+    files:
+      - realm/lab-realm.json
+  - name: keycloak-scripts
+    namespace: idp
+    files:
+      - scripts/render-realm.sh

@@ -27,13 +27,13 @@ local (k3d) クラスタの作成・削除と、kubectl の context 切り替え
 ```sh
 make cluster-up    # クラスタ k8s-test-harness-lab を作成 (既にあれば何もしない)
 make deploy        # manifest/overlays/local を適用
-make verify        # NameSpace と ingress の到達性を確認
+make verify        # NameSpace / ingress の到達性と、Keycloak の issuer がホストと Pod で一致することを確認
 ```
 
 `make verify` が最後に次の行を出せば完了。
 
 ```
-ingress http://localhost:8080/ -> 404 (traefik の 404 なら到達している)
+OK: issuer がホストと Pod で一致
 ```
 
 作成されるもの:
@@ -46,6 +46,20 @@ ingress http://localhost:8080/ -> 404 (traefik の 404 なら到達している)
 | 定義 | [cluster/k3d.yaml](../cluster/k3d.yaml) |
 
 `make cluster-up` は `~/.kube/config` に context を追加するが、**current-context は切り替えない**。
+
+## Keycloak を開く
+
+`make deploy` 後、ホストのブラウザ (Windows 側のブラウザでも可) で開ける。
+
+| 画面 | URL | ログイン |
+| --- | --- | --- |
+| 管理コンソール | http://keycloak.localtest.me:8080/admin/ | `admin` / `admin` |
+| テストユーザのアカウント画面 | http://keycloak.localtest.me:8080/realms/lab/account | `ci-01`〜`ci-06` / `ci-password`、`human-01`〜`human-04` / `human-password` |
+| issuer (OIDC discovery) | http://keycloak.localtest.me:8080/realms/lab/.well-known/openid-configuration | — |
+
+値は local 専用のダミー ([manifest/overlays/local/idp-secret.yaml](../manifest/overlays/local/idp-secret.yaml))。
+Keycloak は H2 (揮発) で動いており、Pod が作り直されると realm JSON から同じユーザ群が戻る。
+管理コンソールで行った変更は Pod の再作成で消える。残したい変更は realm JSON に書く。
 
 ## kubectl の context
 
@@ -85,10 +99,14 @@ make cluster-up && make deploy    # 作り直し
 
 クラスタ内のデータ (Keycloak / MySQL / minio) は揮発する前提。作り直しで消えてよい。
 
+Keycloak だけ作り直す場合: `kubectl --context k3d-k8s-test-harness-lab -n idp delete pod -l app=keycloak`
+
 ## トラブルシュート
 
 | 症状 | 原因と対処 |
 | --- | --- |
 | `kubectl get ns` に `idp` などが出ない | current-context が別クラスタを向いている。`kubectl config current-context` で確認し、`--context` を付けるか切り替える |
 | `make cluster-up` がポート競合で失敗する | `8080` / `8443` / `6550` を他プロセスが使用中。`ss -ltn` で確認する |
+| ブラウザで `keycloak.localtest.me` が開けない | 社内 DNS などが 127.0.0.1 への解決をブロックしている可能性がある。hosts ファイル (Windows は `C:\Windows\System32\drivers\etc\hosts`) に `127.0.0.1 keycloak.localtest.me` を追記する |
+| Pod から `keycloak.localtest.me` に届かない | CoreDNS が `coredns-custom` を取り込んでいない。`make deploy` を再実行するか、`kubectl --context k3d-k8s-test-harness-lab -n kube-system rollout restart deploy/coredns` |
 | 作成直後に `localhost:8080` へつながらない | traefik は k3s 起動後に入り、ポートが開くまで数十秒かかる。`make verify` は待つので、それを使う |
