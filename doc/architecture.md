@@ -18,7 +18,7 @@ flowchart LR
   end
 
   subgraph ns_api["ns: api-a / api-b"]
-    A["api-a<br/>resource server"]
+    A["api-a<br/>resource server (Python)"]
     B["api-b<br/>client_credentials"]
   end
 
@@ -28,7 +28,7 @@ flowchart LR
   end
 
   subgraph ns_db["ns: db"]
-    DB[("MySQL")]
+    DB[("Redis<br/>インメモリ")]
   end
 
   subgraph ns_stub["ns: stub (Step 5 で seam のみ)"]
@@ -61,11 +61,15 @@ flowchart LR
 | クラスタ | k3d | EKS (プラットフォームチーム管理) |
 | IdP | Keycloak `start-dev --import-realm` / 1 replica / H2 (揮発) | 同じ |
 | Ingress | traefik (k3d 標準) | ALB Controller |
-| DB | MySQL (in-cluster) | Aurora MySQL |
+| DB | Redis (in-cluster, インメモリ・永続化なし) | 実プロジェクトの DB (Aurora MySQL) |
 | Job トリガ | Redis list (KEDA scaler) | SQS / ファイル連携 |
 | レポート置き場 | minio | S3 |
 | front | Nuxt 4 SPA (SSR off) | 同じ |
-| api | Kotlin / Spring Boot 3 resource server | 同じ |
+| api | Python 3.12 / FastAPI / PyJWT の resource server | — (サンプルアプリは持ち出さない) |
+
+api を Python、DB を Redis にしたのは、どちらも検証対象ではなく軽さを優先したため (Step 3 で変更)。
+DB は api-a / ScaledJob / test-runner から共有するため、プロセス内の DB ではなく別 Pod にしている。
+持ち出すのは「接続先を env で差し替える」パターンのみで、DB の銘柄は持ち出さない。
 
 Job トリガを Redis にしたのは、検証したいのが scaler の銘柄ではなく
 「テストからトリガを投入して成果物をアサートする型」だから。必要になれば localstack に差し替える。
@@ -93,6 +97,23 @@ Keycloak (`idp`) の `/secrets` に置くキー:
 | `user-password-ci` | テストユーザ `ci-01`〜`ci-06` のパスワード |
 | `user-password-human` | テストユーザ `human-01`〜`human-04` のパスワード |
 
+### JWT の検証 (api-a)
+
+| 項目 | 値 |
+| --- | --- |
+| issuer | `OIDC_ISSUER` (Keycloak の `KC_HOSTNAME` + `/realms/lab` と一致させる) |
+| audience | `api-a`。トークンを発行するクライアントに audience mapper を付けて `aud` に入れる |
+| 署名鍵 | issuer の discovery から `jwks_uri` を引いて取得 (クラスタ内から issuer URL で届く前提) |
+| データの分離 | JWT の `sub`。他人の note は 404 (存在しないものとして扱う) |
+
+realm のクライアント:
+
+| clientId | 種別 | 用途 |
+| --- | --- | --- |
+| `test-runner` | public / password grant | 検証スクリプトと test-runner (Step 7)。`aud: api-a` を付ける |
+
+`admin-cli` のトークンは `sub` も `aud: api-a` も持たないため、api-a は受け付けない。
+
 realm テンプレート中の `{{secret:<キー>}}` が、`/secrets/<キー>` の内容に置換される。
 Keycloak 自身の `${...}` 置換と混ざらないよう、記法を分けている。参照先のファイルが無い場合、initContainer は失敗する。
 
@@ -102,7 +123,7 @@ test-runner が run-id を発行し、以下に伝播させる。
 
 - HTTP: `X-Test-Run-Id` ヘッダ
 - Redis メッセージ: 属性に含める
-- DB: 対象テーブルに列を持つ
+- DB: 保存するレコードに持つ (api-a は note の `run_id` フィールド)
 - アプリログ: MDC 等に載せる
 
 失敗時の調査コストが桁で変わるため、Step 3 の時点で入れる。

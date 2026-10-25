@@ -48,7 +48,7 @@ flowchart LR
     end
 
     subgraph ns_api_a["ns: api-a"]
-      A["api-a<br/>resource server"]
+      A["api-a<br/>resource server (Python)"]
     end
 
     subgraph ns_api_b["ns: api-b"]
@@ -56,7 +56,7 @@ flowchart LR
     end
 
     subgraph ns_db["ns: db"]
-      DB[("MySQL")]
+      DB[("Redis<br/>インメモリ")]
     end
 
     subgraph ns_job["ns: job"]

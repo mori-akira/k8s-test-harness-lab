@@ -2,7 +2,9 @@ CLUSTER  := k8s-test-harness-lab
 CONTEXT  := k3d-$(CLUSTER)
 KUBECTL  := kubectl --context $(CONTEXT)
 
-.PHONY: cluster-up cluster-down render deploy verify
+APPS     := api-a
+
+.PHONY: cluster-up cluster-down images render deploy verify
 
 cluster-up: ## k3d クラスタを作成する (既にあれば何もしない)
 	@k3d cluster list $(CLUSTER) >/dev/null 2>&1 || k3d cluster create --config cluster/k3d.yaml
@@ -11,17 +13,27 @@ cluster-up: ## k3d クラスタを作成する (既にあれば何もしない)
 cluster-down: ## k3d クラスタを削除する
 	k3d cluster delete $(CLUSTER)
 
+images: ## app/ 配下をビルドして k3d に import する
+	@for app in $(APPS); do \
+	  docker build -q -t $$app:local app/$$app && \
+	  k3d image import -c $(CLUSTER) $$app:local >/dev/null && echo "imported $$app:local" || exit 1; \
+	done
+
 render: ## local overlay をレンダリングして標準出力に出す
 	kubectl kustomize manifest/overlays/local
 
-deploy: ## local overlay を適用する
+deploy: images ## イメージを取り込み、local overlay を適用する
 	$(KUBECTL) apply -k manifest/overlays/local
 	@# coredns-custom の変更は reload を待つと1分以上かかるため、再起動して即時に反映させる
 	$(KUBECTL) -n kube-system rollout restart deploy/coredns
 	$(KUBECTL) -n kube-system rollout status deploy/coredns --timeout=120s
 	$(KUBECTL) -n idp rollout status deploy/keycloak --timeout=300s
+	$(KUBECTL) -n db rollout status deploy/redis --timeout=120s
+	@# イメージのタグは local 固定なので、ビルドし直した分を反映するため再起動する
+	$(KUBECTL) -n api-a rollout restart deploy/api-a
+	$(KUBECTL) -n api-a rollout status deploy/api-a --timeout=120s
 
-verify: ## NameSpace / ingress の到達性 (Step 1) と issuer の一致 (Step 2) を確認する
+verify: ## NameSpace / ingress (Step 1)、issuer の一致 (Step 2)、api-a の認可と sub 分離 (Step 3) を確認する
 	$(KUBECTL) get ns -l app.kubernetes.io/part-of=k8s-test-harness-lab
 	@# traefik は k3s 起動後に HelmChart の Job で入るため、Job の完了を待ってから見る
 	@until $(KUBECTL) -n kube-system get job helm-install-traefik >/dev/null 2>&1; do sleep 2; done
@@ -35,3 +47,4 @@ verify: ## NameSpace / ingress の到達性 (Step 1) と issuer の一致 (Step 
 	echo "ingress http://localhost:8080/ -> $$code (traefik の 404 なら到達している)"; \
 	test "$$code" = 404
 	CONTEXT=$(CONTEXT) scripts/verify-idp.sh
+	CONTEXT=$(CONTEXT) scripts/verify-api.py

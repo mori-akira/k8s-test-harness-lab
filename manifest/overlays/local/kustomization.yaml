@@ -13,6 +13,15 @@ configMapGenerator:
     behavior: merge
     literals:
       - KC_HOSTNAME=http://keycloak.localtest.me:8080
+  - name: api-a-config
+    namespace: api-a
+    behavior: merge
+    literals:
+      - OIDC_ISSUER=http://keycloak.localtest.me:8080/realms/lab
+images:
+  # ローカルでビルドして k3d に import したイメージを使う (make images)
+  - name: api-a
+    newTag: local
 patches:
   - target:
       kind: Ingress
@@ -25,3 +34,14 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: keycloak.localtest.me
+  - target:
+      kind: Ingress
+      name: api-a
+      namespace: api-a
+    patch: |
+      - op: add
+        path: /spec/ingressClassName
+        value: traefik
+      - op: replace
+        path: /spec/rules/0/host
+        value: api-a.localtest.me

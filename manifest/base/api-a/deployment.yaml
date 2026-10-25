@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-a
+  namespace: api-a
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-a
+  template:
+    metadata:
+      labels:
+        app: api-a
+    spec:
+      containers:
+        - name: api-a
+          image: api-a
+          envFrom:
+            - configMapRef:
+                name: api-a-config
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5

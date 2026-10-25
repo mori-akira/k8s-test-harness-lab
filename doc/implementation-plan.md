@@ -34,7 +34,7 @@ EKS (dev) 上で IT を自動化する仕組みのうち、以下2点を local �
 | 0 | doc 一式 (本ファイル群) | — | 完了 |
 | 1 | リポジトリ骨格 + kustomize base/overlays + k3d クラスタ構築手順 | local 固有の値が overlay に閉じるか | 完了 |
 | 2 | **Keycloak 単体**を上げる | realm import / Secret レンダリング / **issuer 到達性** | 完了 |
-| 3 | api-a (Spring Boot resource server, `sub` スコープの CRUD 1つ) + MySQL | トークンで API を叩けるか | 未着手 |
+| 3 | api-a (Python / FastAPI の resource server, `sub` スコープの CRUD 1つ) + Redis | トークンで API を叩けるか | 完了 |
 | 4 | front (Nuxt SPA, 認可コード + PKCE, 画面1つ) | ブラウザフローが通るか | 未着手 |
 | 5 | api-b (client_credentials で api-a 呼び出し + **外部呼び出し1本**) | サービス間認証。(2) の seam 設置 | 未着手 |
 | 6 | job (KEDA ScaledJob, Redis list トリガ) | トリガ注入 → Job 起動 → 成果物 | 未着手 |
@@ -59,6 +59,13 @@ k3d を使う。定義は [cluster/k3d.yaml](../cluster/k3d.yaml)、操作は `M
 
 既知の挙動: traefik は k3s 起動後に HelmChart の Job で入り、rollout 完了後も svclb がポートを開くまで数秒かかる。
 `make verify` はこれを待ってから ingress の 404 を確認する。
+
+## Step 3 の決定
+
+- api は Spring Boot をやめ Python / FastAPI にした。DB は MySQL をやめ Redis (インメモリ) にした。どちらも軽さ優先
+- イメージはローカルでビルドし `k3d image import` で取り込む (`make images`、`make deploy` が呼ぶ)。タグは `local` 固定
+- トークンの発行には realm にクライアント `test-runner` を追加した。`admin-cli` のトークンには `sub` が無い
+- `make verify` の [scripts/verify-api.py](../scripts/verify-api.py) で、認可 (401) / sub 分離 (404) / run-id の保存とログ出力を確認する
 
 ## Step 2 の注意点 (既知の罠)
 

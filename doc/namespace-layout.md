@@ -7,8 +7,8 @@ dev の実プロジェクトに合わせ、Deployment / ScaledJob の単位で�
 | NameSpace | 中身 | 導入 Step |
 | --- | --- | --- |
 | `idp` | Keycloak | 2 |
-| `db` | MySQL | 3 |
-| `api-a` | api-a (resource server) | 3 |
+| `db` | Redis (サンプルアプリのデータストア、インメモリ) | 3 |
+| `api-a` | api-a (resource server, Python / FastAPI) | 3 |
 | `front` | Nuxt SPA | 4 |
 | `api-b` | api-b (サービス間通信 + 外部呼び出し) | 5 |
 | `job` | Redis + KEDA ScaledJob | 6 |
@@ -61,7 +61,9 @@ base に local 固有の値が入り込み、この表に書けない差分が�
 | Keycloak の Ingress | host `keycloak.localtest.me` / class `traefik` | 内部 ALB のホスト名 / ALB |
 | issuer host の Pod 内解決 | CoreDNS rewrite (`kube-system/coredns-custom`) | 要確認 (内部 ALB のホスト名が Pod から引けるか) |
 | Secret 供給 | ダミー Secret マニフェスト | Secrets Manager 注入 (既存実績) |
-| DB 接続先 | in-cluster MySQL の Service | Aurora MySQL のエンドポイント |
+| DB 接続先 (`REDIS_URL`) | in-cluster Redis の Service | 実プロジェクトの DB (Aurora MySQL)。サンプルアプリの DB は持ち出さない |
+| api-a の issuer (`OIDC_ISSUER`) | `http://keycloak.localtest.me:8080/realms/lab` | 内部 ALB のホスト名 |
+| api-a の Ingress | host `api-a.localtest.me` / class `traefik` | 内部 ALB のホスト名 / ALB |
 | Job トリガ | in-cluster Redis | SQS / ファイル連携 |
 | レポート置き場 | minio の Service | S3 バケット |
 | StorageClass / LoadBalancer | k3d 標準 | EKS |

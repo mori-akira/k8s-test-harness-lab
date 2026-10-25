@@ -61,6 +61,22 @@ OK: issuer がホストと Pod で一致
 Keycloak は H2 (揮発) で動いており、Pod が作り直されると realm JSON から同じユーザ群が戻る。
 管理コンソールで行った変更は Pod の再作成で消える。残したい変更は realm JSON に書く。
 
+## api-a を叩く
+
+`http://api-a.localtest.me:8080` で Ingress 経由で届く。Keycloak の `test-runner` クライアントで取ったトークンを付ける。
+
+```sh
+TOKEN=$(curl -s -d grant_type=password -d client_id=test-runner -d username=ci-01 -d password=ci-password \
+  http://keycloak.localtest.me:8080/realms/lab/protocol/openid-connect/token | python3 -c 'import json,sys;print(json.load(sys.stdin)["access_token"])')
+curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -H 'X-Test-Run-Id: manual' \
+  -d '{"title":"hello"}' http://api-a.localtest.me:8080/notes
+curl -s -H "Authorization: Bearer $TOKEN" http://api-a.localtest.me:8080/notes
+```
+
+API ドキュメント (FastAPI の Swagger UI): http://api-a.localtest.me:8080/docs
+
+`app/` を変更したら `make deploy` でビルド・取り込み・再起動まで行う。
+
 ## kubectl の context
 
 ### 確認
@@ -97,7 +113,7 @@ make cluster-down                 # クラスタと context を削除
 make cluster-up && make deploy    # 作り直し
 ```
 
-クラスタ内のデータ (Keycloak / MySQL / minio) は揮発する前提。作り直しで消えてよい。
+クラスタ内のデータ (Keycloak / Redis / minio) は揮発する前提。作り直しで消えてよい。
 
 Keycloak だけ作り直す場合: `kubectl --context k3d-k8s-test-harness-lab -n idp delete pod -l app=keycloak`
 

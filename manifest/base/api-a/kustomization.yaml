@@ -2,3 +2,15 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+configMapGenerator:
+  - name: api-a-config
+    namespace: api-a
+    literals:
+      # Keycloak の KC_HOSTNAME と同じ URL にすること。overlay で差し替える
+      - OIDC_ISSUER=http://keycloak.invalid/realms/lab
+      - OIDC_AUDIENCE=api-a
+      # DB 接続先。dev では実プロジェクトの DB に差し替える
+      - REDIS_URL=redis://redis.db.svc.cluster.local:6379/0

@@ -3,6 +3,37 @@
   "enabled": true,
   "sslRequired": "external",
   "registrationAllowed": false,
+  "clients": [
+    {
+      "clientId": "test-runner",
+      "name": "test-runner (Playwright / seed / 検証スクリプト用)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "acr"
+      ],
+      "protocolMappers": [
+        {
+          "name": "audience-api-a",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "api-a",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
   "users": [
     {
       "username": "ci-01",
