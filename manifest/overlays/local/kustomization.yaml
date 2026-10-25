@@ -18,9 +18,24 @@ configMapGenerator:
     behavior: merge
     literals:
       - OIDC_ISSUER=http://keycloak.localtest.me:8080/realms/lab
+      - CORS_ALLOW_ORIGINS=http://front.localhost:8080
+  - name: keycloak-realm-params
+    namespace: idp
+    behavior: merge
+    literals:
+      # PKCE (crypto.subtle) は secure context でしか動かない。http で secure context になるのは localhost / *.localhost のみ
+      - FRONT_ORIGIN=http://front.localhost:8080
+  - name: front-config
+    namespace: front
+    behavior: merge
+    literals:
+      - OIDC_ISSUER=http://keycloak.localtest.me:8080/realms/lab
+      - API_BASE=http://api-a.localtest.me:8080
 images:
   # ローカルでビルドして k3d に import したイメージを使う (make images)
   - name: api-a
+    newTag: local
+  - name: front
     newTag: local
 patches:
   - target:
@@ -45,3 +60,14 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: api-a.localtest.me
+  - target:
+      kind: Ingress
+      name: front
+      namespace: front
+    patch: |
+      - op: add
+        path: /spec/ingressClassName
+        value: traefik
+      - op: replace
+        path: /spec/rules/0/host
+        value: front.localhost

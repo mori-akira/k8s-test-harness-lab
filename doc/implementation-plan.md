@@ -35,7 +35,7 @@ EKS (dev) 上で IT を自動化する仕組みのうち、以下2点を local �
 | 1 | リポジトリ骨格 + kustomize base/overlays + k3d クラスタ構築手順 | local 固有の値が overlay に閉じるか | 完了 |
 | 2 | **Keycloak 単体**を上げる | realm import / Secret レンダリング / **issuer 到達性** | 完了 |
 | 3 | api-a (Python / FastAPI の resource server, `sub` スコープの CRUD 1つ) + Redis | トークンで API を叩けるか | 完了 |
-| 4 | front (Nuxt SPA, 認可コード + PKCE, 画面1つ) | ブラウザフローが通るか | 未着手 |
+| 4 | front (HTML + JS の SPA, 認可コード + PKCE, 画面1つ) | ブラウザフローが通るか | 完了 |
 | 5 | api-b (client_credentials で api-a 呼び出し + **外部呼び出し1本**) | サービス間認証。(2) の seam 設置 | 未着手 |
 | 6 | job (KEDA ScaledJob, Redis list トリガ) | トリガ注入 → Job 起動 → 成果物 | 未着手 |
 | 7 | **test-runner Job** (Playwright, 2 worker, teardown, レポート搬出) | 合格条件 2 / 3 / 4 | 未着手 |
@@ -59,6 +59,21 @@ k3d を使う。定義は [cluster/k3d.yaml](../cluster/k3d.yaml)、操作は `M
 
 既知の挙動: traefik は k3s 起動後に HelmChart の Job で入り、rollout 完了後も svclb がポートを開くまで数秒かかる。
 `make verify` はこれを待ってから ingress の 404 を確認する。
+
+## Step 4 の決定
+
+- front は Nuxt をやめ、素の HTML + JavaScript を nginx で配信する。確かめたいのは認可コード + PKCE と CORS と設定注入で、フレームワークに依存しない
+- OIDC 処理は `oidc-client-ts` (3.4.1) を使う。ビルド時に取得してイメージに同梱する
+- 環境差分 (issuer / api-a の URL) は nginx が `/config.js` として返す。値は ConfigMap の環境変数
+- realm テンプレートに `{{config:<キー>}}` を追加し、front の redirect URI / web origin を overlay から埋める
+- front のオリジンは `http://front.localhost:8080`。PKCE の S256 は `crypto.subtle` を使い、これは secure context
+  (HTTPS か `localhost` / `*.localhost`) でしか動かない。`front.localtest.me` ではブラウザでログインできなかった
+  - ブラウザ (Chrome / Edge / Firefox) は `*.localhost` を自前で loopback に解決する。Python や PowerShell は解決しない
+  - Keycloak / api-a は `*.localtest.me` のまま。secure context が必要なのはページを表示する front だけ
+  - 全面 HTTPS 化は、CA の配布 (Windows / Pod) と issuer の port 設計の作り直しが要るため見送った。dev は HTTPS 前提
+  - **Step 7 の懸念**: クラスタ内の Chromium も `front.localhost` を自 Pod の loopback に解決する。`--host-resolver-rules` で front の Service に向ける想定 (未検証)
+- この環境の docker は BuildKit が無い (`ADD --chmod` 等は使えない)
+- `make verify` の [scripts/verify-front.py](../scripts/verify-front.py) で、PKCE 必須・redirect URI 制限・トークン交換・CORS をブラウザ無しで確認する。画面の確認はブラウザで行う
 
 ## Step 3 の決定
 

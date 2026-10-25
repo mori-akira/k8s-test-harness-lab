@@ -14,7 +14,7 @@ flowchart LR
   end
 
   subgraph ns_front["ns: front"]
-    FE["Nuxt SPA"]
+    FE["front SPA<br/>HTML + JS / nginx"]
   end
 
   subgraph ns_api["ns: api-a / api-b"]
@@ -64,10 +64,10 @@ flowchart LR
 | DB | Redis (in-cluster, インメモリ・永続化なし) | 実プロジェクトの DB (Aurora MySQL) |
 | Job トリガ | Redis list (KEDA scaler) | SQS / ファイル連携 |
 | レポート置き場 | minio | S3 |
-| front | Nuxt 4 SPA (SSR off) | 同じ |
+| front | 素の HTML + JavaScript (oidc-client-ts) を nginx で配信 | — (サンプルアプリは持ち出さない) |
 | api | Python 3.12 / FastAPI / PyJWT の resource server | — (サンプルアプリは持ち出さない) |
 
-api を Python、DB を Redis にしたのは、どちらも検証対象ではなく軽さを優先したため (Step 3 で変更)。
+api を Python、DB を Redis、front を素の HTML + JS にしたのは、どれも検証対象ではなく軽さを優先したため (Step 3 / 4 で変更)。
 DB は api-a / ScaledJob / test-runner から共有するため、プロセス内の DB ではなく別 Pod にしている。
 持ち出すのは「接続先を env で差し替える」パターンのみで、DB の銘柄は持ち出さない。
 
@@ -104,6 +104,7 @@ Keycloak (`idp`) の `/secrets` に置くキー:
 | issuer | `OIDC_ISSUER` (Keycloak の `KC_HOSTNAME` + `/realms/lab` と一致させる) |
 | audience | `api-a`。トークンを発行するクライアントに audience mapper を付けて `aud` に入れる |
 | 署名鍵 | issuer の discovery から `jwks_uri` を引いて取得 (クラスタ内から issuer URL で届く前提) |
+| 時刻の許容幅 | `exp` / `iat` / `nbf` に 30 秒の leeway。Step 4 でブラウザ経由のトークンが `iat` 未来で一度だけ 401 になった (再現せず) |
 | データの分離 | JWT の `sub`。他人の note は 404 (存在しないものとして扱う) |
 
 realm のクライアント:
@@ -111,11 +112,23 @@ realm のクライアント:
 | clientId | 種別 | 用途 |
 | --- | --- | --- |
 | `test-runner` | public / password grant | 検証スクリプトと test-runner (Step 7)。`aud: api-a` を付ける |
+| `front` | public / 認可コード + PKCE (S256 必須) | SPA。redirect URI と web origin は front のオリジンに限定。`aud: api-a` を付ける |
+
+クライアントは用途ごとに分ける。1つにまとめるとブラウザ向けクライアントで password grant を有効にすることになり、
+PKCE を必須にした意味が薄れる。分けておけば、環境ごとに `test-runner` だけを無効にできる。
 
 `admin-cli` のトークンは `sub` も `aud: api-a` も持たないため、api-a は受け付けない。
 
-realm テンプレート中の `{{secret:<キー>}}` が、`/secrets/<キー>` の内容に置換される。
+realm テンプレート中の `{{secret:<キー>}}` が `/secrets/<キー>` の内容に、`{{config:<キー>}}` が `/config/<キー>` の内容に置換される。
+`/config` は ConfigMap `keycloak-realm-params` (秘匿不要な環境差分。今は `FRONT_ORIGIN` のみ) から埋める。
 Keycloak 自身の `${...}` 置換と混ざらないよう、記法を分けている。参照先のファイルが無い場合、initContainer は失敗する。
+
+### ブラウザ向け設定の注入 (front)
+
+front の静的ファイルは環境に依存させない。issuer / clientId / api-a の URL は nginx が `/config.js` として返し、
+その値は ConfigMap `front-config` の環境変数から起動時に埋める。環境ごとにイメージをビルドし直さない。
+
+api-a は `CORS_ALLOW_ORIGINS` に列挙したオリジンだけを CORS で許可する。
 
 ### run-id の全層伝播
 

@@ -44,7 +44,7 @@ flowchart LR
     end
 
     subgraph ns_front["ns: front"]
-      FE["Nuxt SPA"]
+      FE["front SPA<br/>HTML + JS / nginx"]
     end
 
     subgraph ns_api_a["ns: api-a"]

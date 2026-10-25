@@ -61,6 +61,11 @@ OK: issuer がホストと Pod で一致
 Keycloak は H2 (揮発) で動いており、Pod が作り直されると realm JSON から同じユーザ群が戻る。
 管理コンソールで行った変更は Pod の再作成で消える。残したい変更は realm JSON に書く。
 
+## front を開く
+
+ブラウザで http://front.localhost:8080 を開き、「ログイン」→ Keycloak のログイン画面で `ci-01` / `ci-password` などを入れる。
+ログイン後はノートの追加・削除ができる。ユーザを変えると別のノートが見える。
+
 ## api-a を叩く
 
 `http://api-a.localtest.me:8080` で Ingress 経由で届く。Keycloak の `test-runner` クライアントで取ったトークンを付ける。
@@ -124,5 +129,7 @@ Keycloak だけ作り直す場合: `kubectl --context k3d-k8s-test-harness-lab -
 | `kubectl get ns` に `idp` などが出ない | current-context が別クラスタを向いている。`kubectl config current-context` で確認し、`--context` を付けるか切り替える |
 | `make cluster-up` がポート競合で失敗する | `8080` / `8443` / `6550` を他プロセスが使用中。`ss -ltn` で確認する |
 | ブラウザで `keycloak.localtest.me` が開けない | 社内 DNS などが 127.0.0.1 への解決をブロックしている可能性がある。hosts ファイル (Windows は `C:\Windows\System32\drivers\etc\hosts`) に `127.0.0.1 keycloak.localtest.me` を追記する |
+| ログイン時に `Crypto.subtle is available only in secure contexts` | front を `front.localhost` 以外のホスト名で開いている。http では `localhost` / `*.localhost` だけが secure context になる |
+| `front.localhost` が curl 以外のツール (Python, PowerShell 等) で解決できない | ブラウザと curl は `*.localhost` を自前で loopback に解決するが、OS のリゾルバは解決しない。必要なら hosts に `127.0.0.1 front.localhost` を足す |
 | Pod から `keycloak.localtest.me` に届かない | CoreDNS が `coredns-custom` を取り込んでいない。`make deploy` を再実行するか、`kubectl --context k3d-k8s-test-harness-lab -n kube-system rollout restart deploy/coredns` |
 | 作成直後に `localhost:8080` へつながらない | traefik は k3s 起動後に入り、ポートが開くまで数十秒かかる。`make verify` は待つので、それを使う |

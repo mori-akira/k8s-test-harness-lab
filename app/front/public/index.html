@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>k8s-test-harness-lab front</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    header { display: flex; justify-content: space-between; align-items: center; }
+    form { display: flex; gap: .5rem; margin: 1rem 0; }
+    input { flex: 1; padding: .4rem; }
+    li { display: flex; justify-content: space-between; padding: .3rem 0; border-bottom: 1px solid #ddd; }
+    .error { color: #b00; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- data-testid は Step 7 の Playwright から参照する -->
+  <section id="login-view" hidden>
+    <h1>notes</h1>
+    <button data-testid="login" id="login">ログイン</button>
+  </section>
+
+  <section id="app-view" hidden>
+    <header>
+      <h1>notes</h1>
+      <div><span data-testid="username" id="username"></span> <button data-testid="logout" id="logout">ログアウト</button></div>
+    </header>
+    <form id="create-form">
+      <input data-testid="note-title" id="note-title" placeholder="タイトル" required>
+      <button data-testid="note-create" type="submit">追加</button>
+    </form>
+    <ul data-testid="note-list" id="note-list"></ul>
+  </section>
+
+  <p class="error" data-testid="error" id="error" hidden></p>
+
+  <script src="/config.js"></script>
+  <script src="/vendor/oidc-client-ts.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

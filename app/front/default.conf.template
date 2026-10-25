@@ -1,0 +1,16 @@
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+
+    # 環境ごとの設定。ビルドし直さずに ConfigMap (環境変数) で差し替える
+    location = /config.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-store";
+        return 200 'window.APP_CONFIG = { issuer: "${OIDC_ISSUER}", clientId: "${OIDC_CLIENT_ID}", apiBase: "${API_BASE}" };\n';
+    }
+
+    location / {
+        add_header Cache-Control "no-store";
+        try_files $uri /index.html;
+    }
+}

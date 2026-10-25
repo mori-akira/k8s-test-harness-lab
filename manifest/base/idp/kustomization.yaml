@@ -13,6 +13,11 @@ configMapGenerator:
       - KC_HOSTNAME=http://keycloak.invalid
       - KC_PROXY_HEADERS=xforwarded
       - KC_HEALTH_ENABLED=true
+  - name: keycloak-realm-params
+    namespace: idp
+    literals:
+      # realm テンプレートの {{config:<name>}} に入る値。overlay で差し替える
+      - FRONT_ORIGIN=http://front.invalid
   - name: keycloak-realm-template
     namespace: idp
     files:

@@ -9,7 +9,7 @@ dev の実プロジェクトに合わせ、Deployment / ScaledJob の単位で�
 | `idp` | Keycloak | 2 |
 | `db` | Redis (サンプルアプリのデータストア、インメモリ) | 3 |
 | `api-a` | api-a (resource server, Python / FastAPI) | 3 |
-| `front` | Nuxt SPA | 4 |
+| `front` | front (HTML + JS の SPA、nginx) | 4 |
 | `api-b` | api-b (サービス間通信 + 外部呼び出し) | 5 |
 | `job` | Redis + KEDA ScaledJob | 6 |
 | `test` | test-runner Job + minio | 7 |
@@ -64,6 +64,10 @@ base に local 固有の値が入り込み、この表に書けない差分が�
 | DB 接続先 (`REDIS_URL`) | in-cluster Redis の Service | 実プロジェクトの DB (Aurora MySQL)。サンプルアプリの DB は持ち出さない |
 | api-a の issuer (`OIDC_ISSUER`) | `http://keycloak.localtest.me:8080/realms/lab` | 内部 ALB のホスト名 |
 | api-a の Ingress | host `api-a.localtest.me` / class `traefik` | 内部 ALB のホスト名 / ALB |
+| api-a の CORS (`CORS_ALLOW_ORIGINS`) | `http://front.localhost:8080` | front のオリジン |
+| front のオリジン (realm の `FRONT_ORIGIN`) | `http://front.localhost:8080` (secure context にするため `*.localhost`) | 内部 ALB のホスト名 (HTTPS) |
+| front の設定 (`front-config`) | issuer / api-a の URL を local のホスト名に | 内部 ALB のホスト名 |
+| front の Ingress | host `front.localhost` / class `traefik` | 内部 ALB のホスト名 / ALB |
 | Job トリガ | in-cluster Redis | SQS / ファイル連携 |
 | レポート置き場 | minio の Service | S3 バケット |
 | StorageClass / LoadBalancer | k3d 標準 | EKS |

@@ -12,5 +12,7 @@ configMapGenerator:
       # Keycloak の KC_HOSTNAME と同じ URL にすること。overlay で差し替える
       - OIDC_ISSUER=http://keycloak.invalid/realms/lab
       - OIDC_AUDIENCE=api-a
+      # ブラウザ (front) からの呼び出しを許可するオリジン。カンマ区切り。overlay で差し替える
+      - CORS_ALLOW_ORIGINS=
       # DB 接続先。dev では実プロジェクトの DB に差し替える
       - REDIS_URL=redis://redis.db.svc.cluster.local:6379/0

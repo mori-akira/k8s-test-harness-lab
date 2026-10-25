@@ -15,12 +15,14 @@ from functools import cache
 import jwt
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
 OIDC_ISSUER = os.environ["OIDC_ISSUER"]
 OIDC_AUDIENCE = os.environ["OIDC_AUDIENCE"]
 REDIS_URL = os.environ["REDIS_URL"]
+CORS_ALLOW_ORIGINS = [o for o in os.environ.get("CORS_ALLOW_ORIGINS", "").split(",") if o]
 
 RUN_ID_HEADER = "X-Test-Run-Id"
 run_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("run_id", default="-")
@@ -41,6 +43,9 @@ log.setLevel(logging.INFO)
 
 db = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 app = FastAPI(title="api-a")
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ALLOW_ORIGINS,
+                   allow_methods=["GET", "POST", "PUT", "DELETE"],
+                   allow_headers=["Authorization", "Content-Type", RUN_ID_HEADER])
 
 
 @app.middleware("http")
@@ -70,6 +75,8 @@ def current_sub(cred: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(a
         key = jwks_client().get_signing_key_from_jwt(cred.credentials)
         claims = jwt.decode(cred.credentials, key, algorithms=["RS256"],
                             issuer=OIDC_ISSUER, audience=OIDC_AUDIENCE,
+                            # exp / iat / nbf の時刻ずれを許容する (Spring Security の既定は 60 秒)
+                            leeway=30,
                             options={"require": ["exp", "iss", "aud", "sub"]})
     except jwt.PyJWTError as e:
         log.info("token rejected: %s", e)
