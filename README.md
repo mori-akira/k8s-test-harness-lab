@@ -13,6 +13,7 @@ k8s 上に構築するテストハーネスの技術検証。
 | [doc/implementation-plan.md](doc/implementation-plan.md) | 方針と Step 0〜7 |
 | [doc/architecture.md](doc/architecture.md) | 構成図、採用技術、設計の決めごと |
 | [doc/namespace-layout.md](doc/namespace-layout.md) | NameSpace 構成、ディレクトリ構成、overlay 差分 |
+| [doc/local-cluster.md](doc/local-cluster.md) | ローカルクラスタの作成・削除、kubectl の context 切り替え |
 
 ## 検証対象
 
@@ -99,7 +100,7 @@ flowchart LR
 
 ## ローカルで動かす
 
-前提: docker / k3d v5 / kubectl。詳細は [doc/implementation-plan.md](doc/implementation-plan.md) の「ローカルクラスタ」。
+前提: docker / k3d v5 / kubectl。手順の詳細と context の切り替えは [doc/local-cluster.md](doc/local-cluster.md)。
 
 ```sh
 make cluster-up    # k3d クラスタ k8s-test-harness-lab を作成 (current-context は変えない)

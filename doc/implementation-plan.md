@@ -45,6 +45,7 @@ Step 2 が最初のリスク消化。ここで詰まる想定なので、アプ�
 ## ローカルクラスタ (Step 1 で決定)
 
 k3d を使う。定義は [cluster/k3d.yaml](../cluster/k3d.yaml)、操作は `Makefile` に集約する。
+手順は [local-cluster.md](local-cluster.md)。
 
 | 項目 | 値 | 理由 |
 | --- | --- | --- |
