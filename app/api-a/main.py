@@ -23,6 +23,8 @@ OIDC_ISSUER = os.environ["OIDC_ISSUER"]
 OIDC_AUDIENCE = os.environ["OIDC_AUDIENCE"]
 REDIS_URL = os.environ["REDIS_URL"]
 CORS_ALLOW_ORIGINS = [o for o in os.environ.get("CORS_ALLOW_ORIGINS", "").split(",") if o]
+# /internal/* を呼べるクライアント (トークンの azp)。カンマ区切り
+INTERNAL_CLIENTS = [c for c in os.environ.get("INTERNAL_CLIENTS", "").split(",") if c]
 
 RUN_ID_HEADER = "X-Test-Run-Id"
 run_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("run_id", default="-")
@@ -68,7 +70,7 @@ def jwks_client() -> jwt.PyJWKClient:
     return jwt.PyJWKClient(jwks_uri, cache_keys=True)
 
 
-def current_sub(cred: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))) -> str:
+def current_claims(cred: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))) -> dict:
     if cred is None:
         raise HTTPException(401, "missing bearer token")
     try:
@@ -81,12 +83,24 @@ def current_sub(cred: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(a
     except jwt.PyJWTError as e:
         log.info("token rejected: %s", e)
         raise HTTPException(401, "invalid token")
+    return claims
+
+
+def current_sub(claims: dict = Depends(current_claims)) -> str:
     return claims["sub"]
+
+
+def internal_client(claims: dict = Depends(current_claims)) -> str:
+    # サービス間呼び出し (client_credentials) のみ許可する。ユーザのトークンは azp が front / test-runner になる
+    if claims.get("azp") not in INTERNAL_CLIENTS:
+        raise HTTPException(403, "internal clients only")
+    return claims["azp"]
 
 
 # --- notes --------------------------------------------------------------------
 # note:<id>      hash  (owner, title, body, run_id, created_at)
 # notes:<sub>    set   (その sub が持つ note の id)
+# run:<run_id>   set   (その run-id で作られた note の id。api-b / export Job が参照する)
 
 class NoteIn(BaseModel):
     title: str
@@ -120,6 +134,8 @@ def create_note(body: NoteIn, sub: str = Depends(current_sub)):
     with db.pipeline() as p:
         p.hset(f"note:{note_id}", mapping=note)
         p.sadd(f"notes:{sub}", note_id)
+        if note["run_id"] != "-":
+            p.sadd(f"run:{note['run_id']}", note_id)
         p.execute()
     log.info("created note %s", note_id)
     return {"id": note_id, **note}
@@ -139,9 +155,17 @@ def update_note(note_id: str, body: NoteIn, sub: str = Depends(current_sub)):
 
 @app.delete("/notes/{note_id}", status_code=204)
 def delete_note(note_id: str, sub: str = Depends(current_sub)):
-    load_note(sub, note_id)
+    note = load_note(sub, note_id)
     with db.pipeline() as p:
         p.delete(f"note:{note_id}")
         p.srem(f"notes:{sub}", note_id)
+        p.srem(f"run:{note['run_id']}", note_id)
         p.execute()
     return Response(status_code=204)
+
+
+@app.get("/internal/notes/count")
+def count_notes_by_run(run_id: str, client: str = Depends(internal_client)):
+    count = db.scard(f"run:{run_id}")
+    log.info("count for run %s requested by %s: %d", run_id, client, count)
+    return {"run_id": run_id, "count": count}

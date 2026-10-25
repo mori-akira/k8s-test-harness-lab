@@ -1,0 +1,32 @@
+# export Job の雛形。スケジュールでは動かさない (suspend)。
+# 起動は雛形から Job を作り RUN_ID を足して create する (scripts/run-export-job.sh、Step 7 では test-runner)。
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: export
+  namespace: job
+spec:
+  suspend: true
+  schedule: "0 0 31 2 *"
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 120
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: export
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: export
+              image: job
+              envFrom:
+                - configMapRef:
+                    name: job-config
+              env:
+                - name: JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['batch.kubernetes.io/job-name']

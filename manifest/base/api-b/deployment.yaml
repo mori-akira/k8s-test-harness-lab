@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-b
+  namespace: api-b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-b
+  template:
+    metadata:
+      labels:
+        app: api-b
+    spec:
+      containers:
+        - name: api-b
+          image: api-b
+          envFrom:
+            - configMapRef:
+                name: api-b-config
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          volumeMounts:
+            # client secret は /secrets から読む (Keycloak と同じ契約。埋め方だけが環境差分)
+            - { name: secrets, mountPath: /secrets, readOnly: true }
+      volumes:
+        - name: secrets
+          secret:
+            secretName: api-b-secrets

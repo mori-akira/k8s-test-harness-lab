@@ -72,6 +72,36 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "api-b",
+      "name": "api-b (サービス間通信)",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "{{secret:api-b-client-secret}}",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "defaultClientScopes": [
+        "basic",
+        "roles",
+        "acr"
+      ],
+      "protocolMappers": [
+        {
+          "name": "audience-api-a",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "api-a",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -224,6 +254,11 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "service-account-api-b",
+      "enabled": true,
+      "serviceAccountClientId": "api-b"
     }
   ]
 }

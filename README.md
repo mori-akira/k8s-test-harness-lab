@@ -18,7 +18,7 @@ k8s 上に構築するテストハーネスの技術検証。
 ## 検証対象
 
 - **(1)** Keycloak を EKS 上にセルフホストし、Git の realm JSON で複数テストユーザを宣言的に管理する
-- **(3)** テストデータ準備 / E2E / ScaledJob 起動を k8s Job として回す
+- **(3)** テストデータ準備 / E2E / 後続 Job の起動を k8s Job として回す
 
 (2) カオスエンジニアリング (Toxiproxy + WireMock) はスコープ外。seam のみ用意する。
 
@@ -60,11 +60,12 @@ flowchart LR
     end
 
     subgraph ns_job["ns: job"]
-      RQ[("Redis list")]
-      SJ["KEDA ScaledJob"]
+      CJ["CronJob export<br/>(suspend / 雛形)"]
+      EJ["export Job"]
     end
 
-    subgraph ns_stub["ns: stub (スコープ外 / seam のみ)"]
+    subgraph ns_stub["ns: stub"]
+      EXT["external stub<br/>(local のみ)"]
       TX["Toxiproxy"]
       WM["WireMock"]
     end
@@ -82,14 +83,15 @@ flowchart LR
   TR -->|seed REST| A
   A -->|JWKS| KC
   A --> DB
-  A --> B
-  B -->|token| KC
-  B -.->|external| TX
+  B -->|"client_credentials"| KC
+  B -->|internal| A
+  B -->|external| EXT
+  B -.->|"(2) で差し替え"| TX
   TX -.-> WM
 
-  TR -->|"trigger (run-id)"| RQ
-  RQ --> SJ
-  SJ --> DB
+  CJ -.->|雛形| EJ
+  TR -->|"Job 作成 (RUN_ID)"| EJ
+  EJ --> DB
   TR -->|成果物アサート| DB
 
   TR -->|report 搬出| MINIO

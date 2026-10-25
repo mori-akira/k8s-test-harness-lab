@@ -2,7 +2,7 @@
 
 ## NameSpace
 
-dev の実プロジェクトに合わせ、Deployment / ScaledJob の単位で分割する。
+dev の実プロジェクトに合わせ、Deployment / Job の単位で分割する。
 
 | NameSpace | 中身 | 導入 Step |
 | --- | --- | --- |
@@ -11,9 +11,9 @@ dev の実プロジェクトに合わせ、Deployment / ScaledJob の単位で�
 | `api-a` | api-a (resource server, Python / FastAPI) | 3 |
 | `front` | front (HTML + JS の SPA、nginx) | 4 |
 | `api-b` | api-b (サービス間通信 + 外部呼び出し) | 5 |
-| `job` | Redis + KEDA ScaledJob | 6 |
+| `job` | export Job (suspend の CronJob を雛形に起動) | 6 |
 | `test` | test-runner Job + minio | 7 |
-| `stub` | Toxiproxy + WireMock | (2) 導入時 |
+| `stub` | local: 外部 API の stub (nginx)。(2) 導入時に Toxiproxy + WireMock | 5 (local overlay のみ) |
 
 local では prefix を付けない。dev に移す際は社内の命名規約に合わせる。
 NetworkPolicy は PoC のスコープ外 (= 名前空間間は素通し)。
@@ -36,7 +36,7 @@ NetworkPolicy は PoC のスコープ外 (= 名前空間間は素通し)。
 │  │  ├ front/
 │  │  ├ job/
 │  │  ├ test/
-│  │  └ stub/         — (2) 導入時に追加
+│  │  └ stub/         — (2) 導入時に追加 (local の外部 stub は overlays/local に置く)
 │  └ overlays/
 │     └ local/          — k3d 向け patch
 ├ app/                  — サンプルアプリ (破棄前提)
@@ -68,7 +68,11 @@ base に local 固有の値が入り込み、この表に書けない差分が�
 | front のオリジン (realm の `FRONT_ORIGIN`) | `http://front.localhost:8080` (secure context にするため `*.localhost`) | 内部 ALB のホスト名 (HTTPS) |
 | front の設定 (`front-config`) | issuer / api-a の URL を local のホスト名に | 内部 ALB のホスト名 |
 | front の Ingress | host `front.localhost` / class `traefik` | 内部 ALB のホスト名 / ALB |
-| Job トリガ | in-cluster Redis | SQS / ファイル連携 |
+| 後続 Job の起動 | 雛形 CronJob から Job を作成 | 実プロジェクト側の起動方式 |
+| api-b の issuer (`OIDC_ISSUER`) | `http://keycloak.localtest.me:8080/realms/lab` | 内部 ALB のホスト名 |
+| api-b の外部呼び出し先 (`EXTERNAL_BASE_URL`) | `stub/external` (local overlay にだけ置く) | 実際の外部 API。(2) では Toxiproxy |
+| api-b の client secret (`api-b-secrets`) | ダミー Secret マニフェスト | Secrets Manager 注入 |
+| export Job の DB 接続先 (`job-config` の `REDIS_URL`) | in-cluster Redis | 実プロジェクトの DB |
 | レポート置き場 | minio の Service | S3 バケット |
 | StorageClass / LoadBalancer | k3d 標準 | EKS |
 | `harness.lab/env` ラベル | `local` | `dev` |

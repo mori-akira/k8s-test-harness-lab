@@ -4,6 +4,8 @@ resources:
   - ../../base
   - idp-secret.yaml
   - coredns-custom.yaml
+  - api-b-secret.yaml
+  - external-stub.yaml
 labels:
   - pairs:
       harness.lab/env: local
@@ -19,6 +21,12 @@ configMapGenerator:
     literals:
       - OIDC_ISSUER=http://keycloak.localtest.me:8080/realms/lab
       - CORS_ALLOW_ORIGINS=http://front.localhost:8080
+  - name: api-b-config
+    namespace: api-b
+    behavior: merge
+    literals:
+      - OIDC_ISSUER=http://keycloak.localtest.me:8080/realms/lab
+      - EXTERNAL_BASE_URL=http://external.stub.svc.cluster.local:8080
   - name: keycloak-realm-params
     namespace: idp
     behavior: merge
@@ -36,6 +44,10 @@ images:
   - name: api-a
     newTag: local
   - name: front
+    newTag: local
+  - name: api-b
+    newTag: local
+  - name: job
     newTag: local
 patches:
   - target:

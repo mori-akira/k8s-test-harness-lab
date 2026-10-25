@@ -2,7 +2,9 @@ CLUSTER  := k8s-test-harness-lab
 CONTEXT  := k3d-$(CLUSTER)
 KUBECTL  := kubectl --context $(CONTEXT)
 
-APPS     := api-a front
+# app/ 配下のイメージ。DEPLOYS は deploy 時に再起動する Deployment (namespace と名前が同じ)
+APPS     := api-a api-b front job
+DEPLOYS  := api-a api-b front
 
 .PHONY: cluster-up cluster-down images render deploy verify
 
@@ -30,12 +32,12 @@ deploy: images ## イメージを取り込み、local overlay を適用する
 	$(KUBECTL) -n idp rollout status deploy/keycloak --timeout=300s
 	$(KUBECTL) -n db rollout status deploy/redis --timeout=120s
 	@# イメージのタグは local 固定なので、ビルドし直した分を反映するため再起動する
-	@for app in $(APPS); do \
+	@for app in $(DEPLOYS); do \
 	  $(KUBECTL) -n $$app rollout restart deploy/$$app && \
 	  $(KUBECTL) -n $$app rollout status deploy/$$app --timeout=120s || exit 1; \
 	done
 
-verify: ## NameSpace / ingress (Step 1)、issuer の一致 (Step 2)、api-a の認可と sub 分離 (Step 3)、front の認可コード + PKCE と CORS (Step 4) を確認する
+verify: ## NameSpace / ingress (Step 1)、issuer の一致 (Step 2)、api-a の認可と sub 分離 (Step 3)、front の認可コード + PKCE と CORS (Step 4)、api-b と export Job (Step 5 / 6) を確認する
 	$(KUBECTL) get ns -l app.kubernetes.io/part-of=k8s-test-harness-lab
 	@# traefik は k3s 起動後に HelmChart の Job で入るため、Job の完了を待ってから見る
 	@until $(KUBECTL) -n kube-system get job helm-install-traefik >/dev/null 2>&1; do sleep 2; done
@@ -51,3 +53,4 @@ verify: ## NameSpace / ingress (Step 1)、issuer の一致 (Step 2)、api-a の�
 	CONTEXT=$(CONTEXT) scripts/verify-idp.sh
 	CONTEXT=$(CONTEXT) scripts/verify-api.py
 	CONTEXT=$(CONTEXT) scripts/verify-front.py
+	CONTEXT=$(CONTEXT) scripts/verify-backend.py

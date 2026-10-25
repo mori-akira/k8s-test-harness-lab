@@ -1,0 +1,68 @@
+# api-b の外部呼び出し先の代わり。local にしか置かない (dev では実際の外部 API)。
+# 固定の JSON を返し、受け取った X-Test-Run-Id をアクセスログに出す。
+# (2) を導入するときは api-b -> Toxiproxy -> WireMock に置き換える。
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stub
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-stub
+  namespace: stub
+data:
+  default.conf: |
+    log_format runid '$remote_addr "$request" $status run_id=$http_x_test_run_id';
+    server {
+      listen 8080;
+      access_log /dev/stdout runid;
+      location = /rate {
+        default_type application/json;
+        return 200 '{"source": "external-stub", "rate": 1.23}';
+      }
+      location / {
+        return 404;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external
+  namespace: stub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: external
+  template:
+    metadata:
+      labels:
+        app: external
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /rate, port: http }
+            periodSeconds: 5
+          volumeMounts:
+            - { name: conf, mountPath: /etc/nginx/conf.d }
+      volumes:
+        - name: conf
+          configMap:
+            name: external-stub
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: external
+  namespace: stub
+spec:
+  selector:
+    app: external
+  ports:
+    - { name: http, port: 8080, targetPort: http }

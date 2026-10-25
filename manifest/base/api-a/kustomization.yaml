@@ -14,5 +14,7 @@ configMapGenerator:
       - OIDC_AUDIENCE=api-a
       # ブラウザ (front) からの呼び出しを許可するオリジン。カンマ区切り。overlay で差し替える
       - CORS_ALLOW_ORIGINS=
+      # /internal/* を呼べるクライアント (トークンの azp)
+      - INTERNAL_CLIENTS=api-b
       # DB 接続先。dev では実プロジェクトの DB に差し替える
       - REDIS_URL=redis://redis.db.svc.cluster.local:6379/0

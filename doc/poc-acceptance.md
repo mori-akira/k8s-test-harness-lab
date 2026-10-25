@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 1 | Keycloak の Pod を落として復帰させたとき、Git の realm JSON から同一のユーザ群が手作業ゼロで戻る | `kubectl delete pod -n idp -l app=keycloak` → 再ログインできる |
 | 2 | Playwright 2 worker が別々の Keycloak ユーザで同時ログインし、両方 green。互いのデータを壊さない | test-runner Job を並列度2で実行し green |
-| 3 | テスト Job がトリガを投入 → ScaledJob が起動 → 成果物をアサート → 失敗時でも teardown が走る | 意図的に失敗するシナリオを1本流し、teardown のログを確認 |
+| 3 | テスト Job が後続 Job (export) を起動 → 成果物をアサート → 失敗時でも teardown が走る | 意図的に失敗するシナリオを1本流し、teardown のログを確認 |
 | 4 | レポート / trace がクラスタ外に出て閲覧できる | minio に HTML レポートが置かれ、ブラウザで開ける |
 
 ## 判定の前提

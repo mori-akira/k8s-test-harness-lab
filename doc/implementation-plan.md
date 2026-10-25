@@ -5,7 +5,7 @@
 EKS (dev) 上で IT を自動化する仕組みのうち、以下2点を local の k8s で技術検証する。
 
 - **(1) IdP セルフホスト** — Keycloak を Git の realm JSON で宣言的に管理し、複数テストユーザを自前で持つ
-- **(3) テストハーネスの k8s デプロイ** — テストデータ準備・E2E・ScaledJob 起動を1つの Job で回す
+- **(3) テストハーネスの k8s デプロイ** — テストデータ準備・E2E・後続 Job の起動を1つの Job で回す
 
 **(2) カオスエンジニアリング (Toxiproxy + WireMock) は本 PoC の対象外。** ただし後から挟めるよう、
 外部呼び出しの seam (エンドポイント URL の env 化) だけは Step 5 で作る。
@@ -36,8 +36,8 @@ EKS (dev) 上で IT を自動化する仕組みのうち、以下2点を local �
 | 2 | **Keycloak 単体**を上げる | realm import / Secret レンダリング / **issuer 到達性** | 完了 |
 | 3 | api-a (Python / FastAPI の resource server, `sub` スコープの CRUD 1つ) + Redis | トークンで API を叩けるか | 完了 |
 | 4 | front (HTML + JS の SPA, 認可コード + PKCE, 画面1つ) | ブラウザフローが通るか | 完了 |
-| 5 | api-b (client_credentials で api-a 呼び出し + **外部呼び出し1本**) | サービス間認証。(2) の seam 設置 | 未着手 |
-| 6 | job (KEDA ScaledJob, Redis list トリガ) | トリガ注入 → Job 起動 → 成果物 | 未着手 |
+| 5 | api-b (Python / FastAPI。client_credentials で api-a 呼び出し + **外部呼び出し1本**) | サービス間認証。(2) の seam 設置 | 完了 |
+| 6 | job (Python の export Job。suspend の CronJob を雛形に起動) | Job 起動 → 成果物 | 完了 |
 | 7 | **test-runner Job** (Playwright, 2 worker, teardown, レポート搬出) | 合格条件 2 / 3 / 4 | 未着手 |
 
 Step 2 が最初のリスク消化。ここで詰まる想定なので、アプリを作る前に単独で通す。
@@ -50,7 +50,7 @@ k3d を使う。定義は [cluster/k3d.yaml](../cluster/k3d.yaml)、操作は `M
 | 項目 | 値 | 理由 |
 | --- | --- | --- |
 | クラスタ名 / context | `k8s-test-harness-lab` / `k3d-k8s-test-harness-lab` | 同一ホストの既存 k3d クラスタ (`dev`) と区別できるようリポジトリ名を入れる |
-| ノード | server 1 + agent 1 | Job / ScaledJob が別ノードに載るケースを最低限再現する |
+| ノード | server 1 + agent 1 | Job が別ノードに載るケースを最低限再現する |
 | k3s | `v1.31.5-k3s1` 固定 | 再現性のため |
 | ingress ポート | host `8080` → traefik `80` (`8443` → `443`) | 既存クラスタが 80/443 を使用中。issuer を `keycloak.localtest.me:8080` にする前提とも一致 |
 | API ポート | `127.0.0.1:6550` | 既存クラスタの 6445 を避ける |
@@ -59,6 +59,17 @@ k3d を使う。定義は [cluster/k3d.yaml](../cluster/k3d.yaml)、操作は `M
 
 既知の挙動: traefik は k3s 起動後に HelmChart の Job で入り、rollout 完了後も svclb がポートを開くまで数秒かかる。
 `make verify` はこれを待ってから ingress の 404 を確認する。
+
+## Step 5 / 6 の決定
+
+- api-b も Python / FastAPI。api-b → api-a の呼び出しは client_credentials (クライアント `api-b`)
+- 構成図は当初 api-a → api-b だったが、計画の記述 (api-b が api-a を呼ぶ) に合わせて図を直した
+- api-a に `/internal/notes/count` を追加。`azp` が `api-b` のトークンだけ通す
+- 外部呼び出しは `EXTERNAL_BASE_URL`。local は `stub/external` (nginx) に向ける。stub は local overlay にだけ置く
+- 後続 Job は KEDA ScaledJob をやめ、普通の k8s Job にした。local の PoC で scaler を検証する意味が薄いため
+  - Job の雛形は `suspend: true` の CronJob。kustomize でイメージを差し替えられ、Git で管理できる
+  - 起動は `kubectl create job --from=cronjob/export` に env `RUN_ID` を足して create する。トリガ用のキューは置かない
+- `make verify` の [scripts/verify-backend.py](../scripts/verify-backend.py) で、サービス間認証・外部呼び出し・run-id の伝播・Job の成果物を確認する
 
 ## Step 4 の決定
 

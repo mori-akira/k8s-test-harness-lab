@@ -82,6 +82,17 @@ API ドキュメント (FastAPI の Swagger UI): http://api-a.localtest.me:8080/
 
 `app/` を変更したら `make deploy` でビルド・取り込み・再起動まで行う。
 
+## export Job を起動する
+
+```sh
+scripts/run-export-job.sh manual-01     # Job export-manual-01 を起動 (run-id は英小文字・数字・ハイフン)
+kubectl --context k3d-k8s-test-harness-lab -n job logs job/export-manual-01
+kubectl --context k3d-k8s-test-harness-lab -n db exec deploy/redis -- redis-cli HGETALL export:manual-01
+```
+
+run-id が `manual-01` の note (api-a に `X-Test-Run-Id: manual-01` を付けて作ったもの) が集計される。
+同じ run-id で再実行するときは、先に `kubectl ... -n job delete job/export-manual-01` する。
+
 ## kubectl の context
 
 ### 確認
