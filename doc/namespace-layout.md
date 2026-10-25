@@ -23,6 +23,8 @@ NetworkPolicy は PoC のスコープ外 (= 名前空間間は素通し)。
 ```
 /
 ├ doc/                  — 本ドキュメント群
+├ Makefile              — クラスタ作成 / デプロイ / 確認のエントリポイント
+├ cluster/              — k3d クラスタ定義 (local のみ)
 ├ realm/                — Keycloak realm JSON のテンプレート (10ユーザ定義)
 ├ manifest/
 │  ├ base/              — NameSpace 単位のマニフェスト
@@ -33,10 +35,9 @@ NetworkPolicy は PoC のスコープ外 (= 名前空間間は素通し)。
 │  │  ├ front/
 │  │  ├ job/
 │  │  ├ test/
-│  │  └ stub/
+│  │  └ stub/         — (2) 導入時に追加
 │  └ overlays/
-│     ├ local/          — k3d 向け patch
-│     └ dev/            — EKS 向け patch (PoC では適用しない)
+│     └ local/          — k3d 向け patch
 ├ app/                  — サンプルアプリ (破棄前提)
 │  ├ front/
 │  ├ api-a/
@@ -45,10 +46,11 @@ NetworkPolicy は PoC のスコープ外 (= 名前空間間は素通し)。
 └ test/                 — Playwright テストスイート + seed スクリプト
 ```
 
-`overlays/dev` は PoC では適用しないが、**差分が overlay に閉じていることの証明**として書く。
-書けない差分が出たら base の設計が間違っているシグナル。
+このリポジトリでは dev 環境は構築しないため、`overlays/dev` は置かない。
+dev へ持ち出す際に overlay で patch する項目は下表で管理する。
+base に local 固有の値が入り込み、この表に書けない差分が出たら base の設計が間違っているシグナル。
 
-## overlay 差分の一覧
+## overlay 差分の一覧 (dev への持ち出し時に patch する項目)
 
 | 項目 | local | dev |
 | --- | --- | --- |
@@ -59,6 +61,7 @@ NetworkPolicy は PoC のスコープ外 (= 名前空間間は素通し)。
 | Job トリガ | in-cluster Redis | SQS / ファイル連携 |
 | レポート置き場 | minio の Service | S3 バケット |
 | StorageClass / LoadBalancer | k3d 標準 | EKS |
+| `harness.lab/env` ラベル | `local` | `dev` |
 | イメージ | ローカルビルドを k3d に import | ECR |
 
 この表が増えすぎたら base の抽象が足りていない。随時見直す。

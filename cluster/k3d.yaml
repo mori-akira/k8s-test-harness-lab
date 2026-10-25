@@ -1,0 +1,24 @@
+# local 検証用クラスタ。既存の k3d クラスタと共存できるようポートをずらしている。
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: k8s-test-harness-lab
+servers: 1
+agents: 1
+image: rancher/k3s:v1.31.5-k3s1
+kubeAPI:
+  hostIP: 127.0.0.1
+  hostPort: "6550"
+ports:
+  # ingress (traefik)。issuer を http://keycloak.localtest.me:8080 にするため 8080 固定
+  - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+  - port: 8443:443
+    nodeFilters:
+      - loadbalancer
+options:
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    # current-context は変えない。操作は常に --context k3d-k8s-test-harness-lab で行う
+    switchCurrentContext: false

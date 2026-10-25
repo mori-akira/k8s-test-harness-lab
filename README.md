@@ -97,6 +97,18 @@ flowchart LR
 
 実線が PoC の対象、破線が (2) 向けの seam。詳細は [doc/architecture.md](doc/architecture.md)。
 
+## ローカルで動かす
+
+前提: docker / k3d v5 / kubectl。詳細は [doc/implementation-plan.md](doc/implementation-plan.md) の「ローカルクラスタ」。
+
+```sh
+make cluster-up    # k3d クラスタ k8s-test-harness-lab を作成 (current-context は変えない)
+make deploy        # manifest/overlays/local を適用
+make verify        # NameSpace と ingress (http://localhost:8080) の到達性を確認
+make render        # local overlay のレンダリング結果を確認
+make cluster-down  # 削除
+```
+
 ## 計画の扱い
 
 doc は暫定。実装を読んで理解が進んだ時点で随時変更する。

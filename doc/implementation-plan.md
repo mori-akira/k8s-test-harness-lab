@@ -23,7 +23,7 @@ EKS (dev) 上で IT を自動化する仕組みのうち、以下2点を local �
 | 方針 | 理由 |
 | --- | --- |
 | サンプルアプリは先に作り切らない。Keycloak 単体から縦に薄く積む | アプリは既知の部分で情報価値がない。未知は IdP 起動周りとテストランナー周りに集中している |
-| 最初から `base/` + `overlays/{local,dev}` に切る | 成果物は EKS に持っていくマニフェスト。local 専用に書くと書き直しになる |
+| 最初から `base/` + `overlays/local` に切る | 成果物は EKS に持っていくマニフェスト。local 専用に書くと書き直しになる。dev overlay はこのリポジトリでは書かず、差分は [namespace-layout.md](namespace-layout.md) の表で管理する |
 | 認証とデプロイの seam だけ本物のスタックを使う | 証明したいのは JWT 検証設定とマニフェストの移植性 |
 | ビジネスロジックは空でよい | ラボであり製品の原型ではない |
 
@@ -32,7 +32,7 @@ EKS (dev) 上で IT を自動化する仕組みのうち、以下2点を local �
 | Step | 内容 | 検証すること | 状態 |
 | --- | --- | --- | --- |
 | 0 | doc 一式 (本ファイル群) | — | 完了 |
-| 1 | リポジトリ骨格 + kustomize base/overlays + k3d クラスタ構築手順 | local/dev 差分が overlay に閉じるか | 未着手 |
+| 1 | リポジトリ骨格 + kustomize base/overlays + k3d クラスタ構築手順 | local 固有の値が overlay に閉じるか | 完了 |
 | 2 | **Keycloak 単体**を上げる | realm import / Secret レンダリング / **issuer 到達性** | 未着手 |
 | 3 | api-a (Spring Boot resource server, `sub` スコープの CRUD 1つ) + MySQL | トークンで API を叩けるか | 未着手 |
 | 4 | front (Nuxt SPA, 認可コード + PKCE, 画面1つ) | ブラウザフローが通るか | 未着手 |
@@ -41,6 +41,23 @@ EKS (dev) 上で IT を自動化する仕組みのうち、以下2点を local �
 | 7 | **test-runner Job** (Playwright, 2 worker, teardown, レポート搬出) | 合格条件 2 / 3 / 4 | 未着手 |
 
 Step 2 が最初のリスク消化。ここで詰まる想定なので、アプリを作る前に単独で通す。
+
+## ローカルクラスタ (Step 1 で決定)
+
+k3d を使う。定義は [cluster/k3d.yaml](../cluster/k3d.yaml)、操作は `Makefile` に集約する。
+
+| 項目 | 値 | 理由 |
+| --- | --- | --- |
+| クラスタ名 / context | `k8s-test-harness-lab` / `k3d-k8s-test-harness-lab` | 同一ホストの既存 k3d クラスタ (`dev`) と区別できるようリポジトリ名を入れる |
+| ノード | server 1 + agent 1 | Job / ScaledJob が別ノードに載るケースを最低限再現する |
+| k3s | `v1.31.5-k3s1` 固定 | 再現性のため |
+| ingress ポート | host `8080` → traefik `80` (`8443` → `443`) | 既存クラスタが 80/443 を使用中。issuer を `keycloak.localtest.me:8080` にする前提とも一致 |
+| API ポート | `127.0.0.1:6550` | 既存クラスタの 6445 を避ける |
+| current-context | 切り替えない | 他の作業を壊さないため。操作は常に `--context k3d-k8s-test-harness-lab` |
+| イメージ供給 | `k3d image import` | レジストリは立てない (dev では ECR) |
+
+既知の挙動: traefik は k3s 起動後に HelmChart の Job で入り、rollout 完了後も svclb がポートを開くまで数秒かかる。
+`make verify` はこれを待ってから ingress の 404 を確認する。
 
 ## Step 2 の注意点 (既知の罠)
 
